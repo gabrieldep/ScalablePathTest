@@ -20,15 +20,49 @@ namespace ScalablePathTest.Controllers
         public IActionResult Get()
         {
             var users = _context.Users
-                .ToArray()
                 .Select(u => new UserDTO
                 {
-                    dob = u.DateOfBirth.ToString("yyyy-MM-dd"),
+                    dob = u.DateOfBirth.HasValue ? u.DateOfBirth.Value.ToString("yyyy-MM-dd") : null,
                     id = u.Id.ToString(),
                     lead_source = u.LeadSource,
                     name = u.Name
                 });
             return StatusCode((int)HttpStatusCode.OK, users);
+        }
+
+        [HttpDelete(Name = "DeleteUser")]
+        public IActionResult Delete(int? id)
+        {
+            if (!id.HasValue)
+                return StatusCode((int)HttpStatusCode.BadRequest, new { message = "Id has no value" });
+
+            var userToDelete = _context.Users.Find(id.Value);
+            if (userToDelete == null)
+                return StatusCode((int)HttpStatusCode.NotFound, new { message = "User not found" });
+
+            _context.Users.Remove(userToDelete);
+            _context.SaveChanges();
+            return StatusCode((int)HttpStatusCode.OK, new { message = "User removed!" });
+        }
+
+        [HttpPut(Name = "PutUser")]
+        public async Task<IActionResult> PutAsync(int? id, [FromBody] UserDTO dto)
+        {
+            if (!id.HasValue)
+                return StatusCode((int)HttpStatusCode.BadRequest, new { message = "Id has no value" });
+
+            var user = _context.Users.Find(id.Value);
+            if (user == null)
+                return StatusCode((int)HttpStatusCode.NotFound, new { message = "User not found" });
+
+            if (!DateTime.TryParse(dto.dob, out _))
+                return StatusCode((int)HttpStatusCode.BadRequest, new { message = "Date in wrong format" });
+
+            user.Name = string.IsNullOrEmpty(dto.name) ? user.Name : dto.name;
+            user.DateOfBirth = string.IsNullOrEmpty(dto.dob) ? user.DateOfBirth : DateTime.Parse(dto.dob);
+            user.LeadSource = string.IsNullOrEmpty(dto.lead_source) ? user.LeadSource : dto.lead_source;
+            await _context.SaveChangesAsync();
+            return StatusCode((int)HttpStatusCode.OK, new { message = "User updated!" });
         }
     }
 }
