@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Redis.OM;
 using ScalablePathTest.DTO;
 using ScalablePathTest.Models;
 using System.Net;
@@ -11,6 +12,8 @@ namespace ScalablePathTest.Controllers
     public class UsersController : ControllerBase
     {
         private readonly ScalablePathDbContext _context;
+        private static readonly RedisConnectionProvider _provider = new("redis://localhost:6379");
+
         public UsersController(ScalablePathDbContext context)
         {
             _context = context;
@@ -19,14 +22,19 @@ namespace ScalablePathTest.Controllers
         [HttpGet(Name = "GetUsers")]
         public IActionResult Get()
         {
-            var users = _context.Users
-                .Select(u => new UserDTO
-                {
-                    dob = u.DateOfBirth.HasValue ? u.DateOfBirth.Value.ToString("yyyy-MM-dd") : null,
-                    id = u.Id.ToString(),
-                    lead_source = u.LeadSource,
-                    name = u.Name
-                });
+            var users = _provider.RedisCollection<User>();
+            if (users.Count() == 0)
+            {
+                var userFromDb = _context.Users
+                    .Select(u => new UserDTO
+                    {
+                        dob = u.DateOfBirth.HasValue ? u.DateOfBirth.Value.ToString("yyyy-MM-dd") : null,
+                        id = u.Id.ToString(),
+                        lead_source = u.LeadSource,
+                        name = u.Name
+                    });
+                return StatusCode((int)HttpStatusCode.OK, users);
+            }
             return StatusCode((int)HttpStatusCode.OK, users);
         }
 

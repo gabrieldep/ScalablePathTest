@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Redis.OM;
 using ScalablePathTest.Models;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -14,6 +15,8 @@ builder.Services.AddDbContext<ScalablePathDbContext>(options =>
                         builder.Configuration.GetConnectionString("WindowsConnection")));
 
 var app = builder.Build();
+RedisConnectionProvider _provider = new("redis://localhost:6379");
+await _provider.Connection.CreateIndexAsync(typeof(User));
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
